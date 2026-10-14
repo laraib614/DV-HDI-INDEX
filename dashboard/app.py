@@ -111,7 +111,7 @@ app.layout = html.Div(
                             ),
                         ]
                     ),
-                    html.Span("DV Lab project", className="project-tag"),
+                    # html.Span("DV Lab project", className="project-tag"),
                 ],
                 className="header-inner",
             ),
