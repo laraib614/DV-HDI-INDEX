@@ -1,0 +1,6 @@
+pandas>=2.3.3
+plotly>=7.1.0
+dash>=4.4.1
+matplotlib
+seaborn
+openpyxl
