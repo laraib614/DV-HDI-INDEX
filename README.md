@@ -179,7 +179,7 @@ This opens charts 1–7 in your browser and saves the two Seaborn charts to `out
 
 ---
 
-## Deliverables and evidence (Week 8–9)
+## Deliverables and evidence 
 
 | Deliverable | Location | Status |
 |---|---|---|
