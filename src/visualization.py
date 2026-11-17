@@ -18,6 +18,12 @@ import plotly.graph_objects as go
 import seaborn as sns
 from matplotlib.figure import Figure
 
+from src.continents import (
+    CONTINENTS,
+    add_continent_column,
+    aggregate_by_continent,
+)
+
 
 # =========================================================
 # 1. DATA LOADING
@@ -47,13 +53,22 @@ PALETTE = [
     "#000000",  # black
 ]
 
+CONTINENT_COLOURS = {
+    "Africa": PALETTE[1],
+    "Asia": PALETTE[4],
+    "Europe": PALETTE[0],
+    "North America": PALETTE[2],
+    "Oceania": PALETTE[5],
+    "South America": PALETTE[3],
+}
+
 AVERAGE_LINE_COLOUR = "#6B7280"
 MAX_LABELLED_POINTS = 12
 
 
 def load_data() -> pd.DataFrame:
-    """Read the cleaned HDI dataset."""
-    return pd.read_csv(file_path)
+    """Read the cleaned HDI dataset and attach the continent column."""
+    return add_continent_column(pd.read_csv(file_path))
 
 
 def get_latest_year(df: pd.DataFrame) -> int:
@@ -113,8 +128,16 @@ def _empty_matplotlib_figure(message: str) -> Figure:
     return fig
 
 
-def _trend_title(countries, first_year: int, last_year: int) -> str:
+def _trend_title(countries, continents, first_year: int, last_year: int) -> str:
     period = f"{first_year}–{last_year}"
+    if countries and continents:
+        return f"HDI Trend: Selected Countries & Continents ({period})"
+    if continents:
+        if len(continents) == len(CONTINENTS):
+            return f"Continental HDI Trend: All {len(CONTINENTS)} Continents ({period})"
+        if len(continents) <= 3:
+            return f"Continental HDI Trend: {', '.join(continents)} ({period})"
+        return f"Continental HDI Trend: {len(continents)} selected continents ({period})"
     if not countries:
         return f"Average HDI Trend ({period})"
     if len(countries) <= 3:
@@ -122,21 +145,54 @@ def _trend_title(countries, first_year: int, last_year: int) -> str:
     return f"HDI Trend: {len(countries)} selected countries ({period})"
 
 
+def _add_global_average_trace(fig: go.Figure, yearly_hdi: pd.DataFrame) -> None:
+    fig.add_trace(
+        go.Scatter(
+            x=yearly_hdi["year"],
+            y=yearly_hdi["HDI"],
+            mode="lines",
+            name="All-country average",
+            line={"color": AVERAGE_LINE_COLOUR, "dash": "dash", "width": 2},
+            hovertemplate=(
+                "<b>All-country average</b><br>"
+                "Year: %{x}<br>HDI: %{y:.3f}<extra></extra>"
+            ),
+        )
+    )
+
+
+def _apply_bottom_legend(fig: go.Figure) -> None:
+    fig.update_layout(
+        legend={
+            "orientation": "h",
+            "yanchor": "top", "y": -0.22,
+            "xanchor": "left", "x": 0,
+            "title": {"text": ""},
+        },
+        yaxis_title="Human Development Index",
+    )
+
+
 # =========================================================
 # 3. CHART 1 - HDI TREND (PLOTLY, FULL 1990-2023)
 # =========================================================
-# No countries selected : average HDI of all countries.
-# Countries selected    : one line per country, plus the
-#                         all-country average as a dashed reference.
+# No countries/continents : average HDI of all countries.
+# Countries selected      : one line per country + dashed all-country average.
+# Continents selected     : one line per continent (mean of its countries)
+#                           + dashed all-country average.
 # `year` (optional) draws a dotted marker for the selected year.
 
-def create_hdi_trend(df: pd.DataFrame, countries=None, year=None) -> go.Figure:
+def create_hdi_trend(
+    df: pd.DataFrame, countries=None, year=None, continents=None
+) -> go.Figure:
     first_year = int(df["year"].min())
     last_year = int(df["year"].max())
 
     yearly_hdi = df.groupby("year", as_index=False)["HDI"].mean()
+    has_countries = bool(countries)
+    has_continents = bool(continents)
 
-    if countries:
+    if has_countries and not has_continents:
         data = df[df["country"].isin(countries)].sort_values(["country", "year"])
 
         if data.empty:
@@ -148,19 +204,9 @@ def create_hdi_trend(df: pd.DataFrame, countries=None, year=None) -> go.Figure:
             y="HDI",
             color="country",
             markers=True,
-            title=_trend_title(countries, first_year, last_year),
+            title=_trend_title(countries, None, first_year, last_year),
             labels={"year": "Year", "HDI": "HDI", "country": "Country"},
             color_discrete_sequence=PALETTE,
-        )
-
-        fig.add_trace(
-            go.Scatter(
-                x=yearly_hdi["year"],
-                y=yearly_hdi["HDI"],
-                mode="lines",
-                name="All-country average",
-                line={"color": AVERAGE_LINE_COLOUR, "dash": "dash", "width": 2},
-            )
         )
 
         fig.update_traces(
@@ -169,23 +215,76 @@ def create_hdi_trend(df: pd.DataFrame, countries=None, year=None) -> go.Figure:
                 "Year: %{x}<br>HDI: %{y:.3f}<extra></extra>"
             )
         )
+        _add_global_average_trace(fig, yearly_hdi)
+        _apply_bottom_legend(fig)
 
-        fig.update_layout(
-            legend={
-                "orientation": "h",
-                "yanchor": "top", "y": -0.22,
-                "xanchor": "left", "x": 0,
-                "title": {"text": ""},
-            },
-            yaxis_title="Human Development Index",
+    elif has_continents:
+        cont_df = aggregate_by_continent(df, continents)
+        country_df = (
+            df[df["country"].isin(countries)].sort_values(["country", "year"])
+            if has_countries
+            else pd.DataFrame()
         )
+        if cont_df.empty and country_df.empty:
+            return _empty_plotly_figure("No data for the selected filters")
+
+        fig = go.Figure()
+
+        if has_countries:
+            for idx, country in enumerate(sorted(country_df["country"].unique())):
+                sub = country_df[country_df["country"] == country]
+                fig.add_trace(
+                    go.Scatter(
+                        x=sub["year"],
+                        y=sub["HDI"],
+                        mode="lines+markers",
+                        name=country,
+                        line={"color": PALETTE[idx % len(PALETTE)], "width": 2.2},
+                        hovertemplate=(
+                            "<b>%{fullData.name}</b><br>"
+                            "Year: %{x}<br>HDI: %{y:.3f}<extra></extra>"
+                        ),
+                    )
+                )
+
+        for continent in sorted(cont_df["continent"].unique()):
+            sub = cont_df[cont_df["continent"] == continent]
+            trace_name = f"{continent} (avg)" if has_countries else continent
+            line_style = {
+                "color": CONTINENT_COLOURS.get(continent, PALETTE[0]),
+                "width": 2.5,
+            }
+            if has_countries:
+                line_style["dash"] = "dashdot"
+            fig.add_trace(
+                go.Scatter(
+                    x=sub["year"],
+                    y=sub["HDI"],
+                    mode="lines" if has_countries else "lines+markers",
+                    name=trace_name,
+                    line=line_style,
+                    customdata=sub["country_count"],
+                    hovertemplate=(
+                        "<b>%{fullData.name}</b> (%{customdata} countries)<br>"
+                        "Year: %{x}<br>Average HDI: %{y:.3f}<extra></extra>"
+                    ),
+                )
+            )
+
+        _add_global_average_trace(fig, yearly_hdi)
+        fig.update_layout(
+            title=_trend_title(countries, continents, first_year, last_year),
+            xaxis_title="Year",
+        )
+        _apply_bottom_legend(fig)
+
     else:
         fig = px.line(
             yearly_hdi,
             x="year",
             y="HDI",
             markers=True,
-            title=_trend_title(None, first_year, last_year),
+            title=_trend_title(None, None, first_year, last_year),
             labels={"year": "Year", "HDI": "Average HDI"},
             color_discrete_sequence=PALETTE,
         )
@@ -251,8 +350,110 @@ def create_bottom10_chart(df: pd.DataFrame, year: int) -> go.Figure:
 
 
 # =========================================================
+# 4B. CONTINENTAL COMPARISON CHARTS (PLOTLY)
+# =========================================================
+
+def create_continent_hdi_bar(
+    df: pd.DataFrame, year: int, continents=None
+) -> go.Figure:
+    year_df = add_continent_column(_year_slice(df, year))
+    cont_df = aggregate_by_continent(year_df, continents)
+
+    if cont_df.empty:
+        return _empty_plotly_figure(f"No continental data available for {year}")
+
+    cont_df = cont_df.sort_values("HDI", ascending=True)
+    global_avg = float(year_df["HDI"].mean())
+
+    fig = px.bar(
+        cont_df,
+        x="HDI",
+        y="continent",
+        color="continent",
+        orientation="h",
+        title=f"Average HDI by Continent ({year})",
+        labels={"HDI": "Average Human Development Index", "continent": "Continent"},
+        color_discrete_map=CONTINENT_COLOURS,
+        custom_data=["country_count", "Life_Expectancy", "GNI_Per_Capita"],
+    )
+
+    fig.update_traces(
+        texttemplate="%{x:.3f}",
+        textposition="outside",
+        cliponaxis=False,
+        hovertemplate=(
+            "<b>%{y}</b> (%{customdata[0]} countries)<br>"
+            "Average HDI: %{x:.3f}<br>"
+            "Avg Life Expectancy: %{customdata[1]:.1f} yrs<br>"
+            "Avg GNI Per Capita: %{customdata[2]:,.0f}"
+            "<extra></extra>"
+        ),
+    )
+
+    fig.add_vline(
+        x=global_avg,
+        line_dash="dash",
+        line_color=AVERAGE_LINE_COLOUR,
+        line_width=1.5,
+        annotation_text=f"Global avg: {global_avg:.3f}",
+        annotation_position="bottom right",
+        annotation_font_color="#3e4c59",
+    )
+
+    fig.update_layout(showlegend=False)
+    fig.update_xaxes(range=[0, 1.1], dtick=0.2)
+
+    return _apply_white_layout(fig)
+
+
+def create_continent_hdi_spread(
+    df: pd.DataFrame, year: int, continents=None
+) -> go.Figure:
+    data = add_continent_column(_year_slice(df, year)).dropna(subset=["continent"])
+    if continents:
+        data = data[data["continent"].isin(continents)]
+
+    if data.empty:
+        return _empty_plotly_figure(f"No continental data available for {year}")
+
+    ordered_continents = (
+        data.groupby("continent")["HDI"].mean().sort_values(ascending=True).index.tolist()
+    )
+
+    fig = px.box(
+        data,
+        x="HDI",
+        y="continent",
+        color="continent",
+        points="all",
+        hover_name="country",
+        hover_data={"HDI": ":.3f", "continent": False},
+        category_orders={"continent": ordered_continents},
+        color_discrete_map=CONTINENT_COLOURS,
+        title=f"HDI Spread Across Countries by Continent ({year})",
+        labels={"HDI": "Human Development Index", "continent": "Continent"},
+    )
+
+    fig.update_traces(marker={"size": 5, "opacity": 0.65})
+    fig.update_layout(showlegend=False)
+    fig.update_xaxes(range=[0, 1.05], dtick=0.2)
+
+    return _apply_white_layout(fig)
+
+
+# =========================================================
 # 5. CHARTS 4-7 - INDICATOR VS HDI SCATTER PLOTS (PLOTLY)
 # =========================================================
+
+_CONTINENT_TEXT_POS = {
+    "Europe": "top center",
+    "South America": "top left",
+    "North America": "bottom right",
+    "Asia": "bottom left",
+    "Oceania": "middle left",
+    "Africa": "top center",
+}
+
 
 def _create_indicator_scatter(
     df: pd.DataFrame,
@@ -263,17 +464,133 @@ def _create_indicator_scatter(
     x_hover_format: str,
     unit_suffix: str = "",
     countries=None,
+    continents=None,
 ) -> go.Figure:
-    data = _year_slice(df, year)
+    year_df = _year_slice(df, year)
+    has_countries = bool(countries)
+    has_continents = bool(continents)
 
-    if countries:
+    if has_continents and not has_countries:
+        cont_df = aggregate_by_continent(year_df, continents)
+        if cont_df.empty:
+            return _empty_plotly_figure("No data for the selected continents")
+
+        fig = go.Figure()
+        for continent in sorted(cont_df["continent"].unique()):
+            row = cont_df[cont_df["continent"] == continent]
+            fig.add_trace(
+                go.Scatter(
+                    x=row[x_column],
+                    y=row["HDI"],
+                    mode="markers+text",
+                    name=continent,
+                    text=[continent],
+                    textposition=_CONTINENT_TEXT_POS.get(continent, "top center"),
+                    marker={
+                        "size": 13,
+                        "opacity": 0.9,
+                        "color": CONTINENT_COLOURS.get(continent, PALETTE[0]),
+                    },
+                    customdata=row["country_count"],
+                    hovertemplate=(
+                        "<b>%{fullData.name}</b> (%{customdata} countries)<br>"
+                        f"Avg {x_label}: %{{x:{x_hover_format}}}{unit_suffix}<br>"
+                        "Avg HDI: %{y:.3f}"
+                        "<extra></extra>"
+                    ),
+                )
+            )
+
+        fig.update_layout(
+            title=f"{title} — Continental Averages ({year})",
+            xaxis_title=f"Average {x_label}",
+            yaxis_title="Average Human Development Index",
+            legend={
+                "orientation": "h",
+                "yanchor": "top", "y": -0.22,
+                "xanchor": "left", "x": 0,
+                "title": {"text": ""},
+            },
+        )
+        return _apply_white_layout(fig)
+
+    if has_continents and has_countries:
+        country_df = year_df[year_df["country"].isin(countries)]
+        cont_df = aggregate_by_continent(year_df, continents)
+        if country_df.empty and cont_df.empty:
+            return _empty_plotly_figure("No data for the selected filters")
+
+        fig = go.Figure()
+        if not country_df.empty:
+            label_points = len(country_df) <= MAX_LABELLED_POINTS
+            fig.add_trace(
+                go.Scatter(
+                    x=country_df[x_column],
+                    y=country_df["HDI"],
+                    mode="markers+text" if label_points else "markers",
+                    name="Selected countries",
+                    text=country_df["country"] if label_points else None,
+                    textposition="top center",
+                    customdata=country_df["country"],
+                    marker={"size": 10, "opacity": 0.85, "color": PALETTE[0]},
+                    hovertemplate=(
+                        "<b>%{customdata}</b><br>"
+                        f"{x_label}: %{{x:{x_hover_format}}}{unit_suffix}<br>"
+                        "HDI: %{y:.3f}"
+                        "<extra></extra>"
+                    ),
+                )
+            )
+
+        for continent in sorted(cont_df["continent"].unique()):
+            row = cont_df[cont_df["continent"] == continent]
+            fig.add_trace(
+                go.Scatter(
+                    x=row[x_column],
+                    y=row["HDI"],
+                    mode="markers+text",
+                    name=f"{continent} (avg)",
+                    text=[f"{continent} (avg)"],
+                    textposition=_CONTINENT_TEXT_POS.get(continent, "bottom center"),
+                    marker={
+                        "size": 13,
+                        "symbol": "diamond",
+                        "opacity": 0.95,
+                        "color": CONTINENT_COLOURS.get(continent, PALETTE[1]),
+                        "line": {"width": 1, "color": "#1f2933"},
+                    },
+                    customdata=row["country_count"],
+                    hovertemplate=(
+                        "<b>%{fullData.name}</b> (%{customdata} countries)<br>"
+                        f"Avg {x_label}: %{{x:{x_hover_format}}}{unit_suffix}<br>"
+                        "Avg HDI: %{y:.3f}"
+                        "<extra></extra>"
+                    ),
+                )
+            )
+
+        fig.update_layout(
+            title=f"{title} ({year})",
+            xaxis_title=x_label,
+            yaxis_title="Human Development Index",
+            legend={
+                "orientation": "h",
+                "yanchor": "top", "y": -0.22,
+                "xanchor": "left", "x": 0,
+                "title": {"text": ""},
+            },
+        )
+        return _apply_white_layout(fig)
+
+    data = year_df
+    if has_countries:
         data = data[data["country"].isin(countries)]
 
     if data.empty:
         return _empty_plotly_figure("No data for the selected filters")
 
     # With only a few countries selected, print their names on the points.
-    label_points = bool(countries) and len(data) <= MAX_LABELLED_POINTS
+    label_points = has_countries and len(data) <= MAX_LABELLED_POINTS
 
     fig = px.scatter(
         data,
@@ -300,7 +617,7 @@ def _create_indicator_scatter(
     return _apply_white_layout(fig)
 
 
-def create_life_expectancy_scatter(df, year, countries=None):
+def create_life_expectancy_scatter(df, year, countries=None, continents=None):
     return _create_indicator_scatter(
         df, year,
         x_column="Life_Expectancy",
@@ -309,10 +626,11 @@ def create_life_expectancy_scatter(df, year, countries=None):
         x_hover_format=".2f",
         unit_suffix=" years",
         countries=countries,
+        continents=continents,
     )
 
 
-def create_gni_scatter(df, year, countries=None):
+def create_gni_scatter(df, year, countries=None, continents=None):
     return _create_indicator_scatter(
         df, year,
         x_column="GNI_Per_Capita",
@@ -320,10 +638,11 @@ def create_gni_scatter(df, year, countries=None):
         title="GNI Per Capita vs HDI",
         x_hover_format=",.2f",
         countries=countries,
+        continents=continents,
     )
 
 
-def create_mean_schooling_scatter(df, year, countries=None):
+def create_mean_schooling_scatter(df, year, countries=None, continents=None):
     return _create_indicator_scatter(
         df, year,
         x_column="Mean_Years_Schooling",
@@ -331,10 +650,11 @@ def create_mean_schooling_scatter(df, year, countries=None):
         title="Mean Years of Schooling vs HDI",
         x_hover_format=".2f",
         countries=countries,
+        continents=continents,
     )
 
 
-def create_expected_schooling_scatter(df, year, countries=None):
+def create_expected_schooling_scatter(df, year, countries=None, continents=None):
     return _create_indicator_scatter(
         df, year,
         x_column="Expected_Years_Schooling",
@@ -342,6 +662,7 @@ def create_expected_schooling_scatter(df, year, countries=None):
         title="Expected Years of Schooling vs HDI",
         x_hover_format=".2f",
         countries=countries,
+        continents=continents,
     )
 
 
@@ -368,17 +689,99 @@ def create_hdi_distribution(df: pd.DataFrame, year: int) -> Figure:
     return fig
 
 
+def create_continent_hdi_distribution(
+    df: pd.DataFrame, year: int, continents=None
+) -> Figure:
+    data = add_continent_column(_year_slice(df, year)).dropna(subset=["continent"])
+    if continents:
+        data = data[data["continent"].isin(continents)]
+
+    if data.empty:
+        return _empty_matplotlib_figure(f"No continental data available for {year}")
+
+    selected = sorted(data["continent"].unique())
+    fig = Figure(figsize=(10, 6))
+    ax = fig.subplots()
+
+    if len(selected) == 1:
+        continent = selected[0]
+        sns.histplot(
+            data["HDI"],
+            bins=12,
+            kde=True,
+            color=CONTINENT_COLOURS.get(continent, PALETTE[0]),
+            ax=ax,
+        )
+        ax.set_title(f"HDI Distribution in {continent} ({year})")
+        ax.set_xlabel("Human Development Index")
+        ax.set_ylabel("Number of Countries")
+    else:
+        order = (
+            data.groupby("continent")["HDI"]
+            .mean()
+            .sort_values(ascending=False)
+            .index.tolist()
+        )
+        sns.boxplot(
+            data=data,
+            x="HDI",
+            y="continent",
+            hue="continent",
+            order=order,
+            palette=CONTINENT_COLOURS,
+            legend=False,
+            boxprops={"alpha": 0.7},
+            ax=ax,
+        )
+        sns.stripplot(
+            data=data,
+            x="HDI",
+            y="continent",
+            order=order,
+            color="#1b2733",
+            alpha=0.55,
+            size=4,
+            jitter=0.18,
+            ax=ax,
+        )
+        ax.set_xlim(0, 1.02)
+        ax.grid(axis="x", linestyle=":", alpha=0.5)
+        ax.set_title(f"HDI Distribution by Continent ({year})")
+        ax.set_xlabel("Human Development Index")
+        ax.set_ylabel("")
+
+    fig.tight_layout()
+    return fig
+
+
 # =========================================================
 # 7. CHART 9 - CORRELATION HEATMAP (SEABORN + MATPLOTLIB)
 # =========================================================
 
-def get_correlation_matrix(df: pd.DataFrame, year: int) -> pd.DataFrame:
-    data = _year_slice(df, year)
+def get_correlation_matrix(
+    df: pd.DataFrame, year: int, continents=None
+) -> pd.DataFrame:
+    data = add_continent_column(_year_slice(df, year))
+    if continents:
+        data = data[data["continent"].isin(continents)]
     return data[CORRELATION_COLUMNS].corr()
 
 
-def create_correlation_heatmap(df: pd.DataFrame, year: int) -> Figure:
-    data = _year_slice(df, year)
+def create_correlation_heatmap(
+    df: pd.DataFrame, year: int, continents=None
+) -> Figure:
+    data = add_continent_column(_year_slice(df, year))
+    scope_label = ""
+    if continents:
+        scoped_data = data[data["continent"].isin(continents)]
+        if len(scoped_data) >= 3:
+            data = scoped_data
+            if len(continents) < len(CONTINENTS):
+                scope_label = (
+                    f" — {', '.join(continents)}"
+                    if len(continents) <= 2
+                    else f" — {len(continents)} Continents"
+                )
 
     if len(data) < 3:
         return _empty_matplotlib_figure(
@@ -399,7 +802,7 @@ def create_correlation_heatmap(df: pd.DataFrame, year: int) -> Figure:
         ax=ax,
     )
 
-    ax.set_title(f"Correlation Between HDI Indicators ({year})")
+    ax.set_title(f"Correlation Between HDI Indicators ({year}{scope_label})")
 
     fig.tight_layout()
     return fig

@@ -1,12 +1,15 @@
 from plotly.graph_objects import Figure as PlotlyFigure
 from matplotlib.figure import Figure as MplFigure
 
+from src.continents import CONTINENTS, aggregate_by_continent
 from src.visualization import (
     load_data, get_latest_year, figure_to_base64,
     create_hdi_trend, create_top10_chart, create_bottom10_chart,
+    create_continent_hdi_bar, create_continent_hdi_spread,
     create_life_expectancy_scatter, create_gni_scatter,
     create_mean_schooling_scatter, create_expected_schooling_scatter,
-    create_hdi_distribution, create_correlation_heatmap,
+    create_hdi_distribution, create_continent_hdi_distribution,
+    create_correlation_heatmap,
 )
 
 df = load_data()
@@ -56,6 +59,47 @@ print("Trend lines with 2 countries:", len(trend.data), "(expected 3):", names)
 plain = create_hdi_trend(df)
 assert len(plain.data) == 1
 print("Trend lines with no countries:", len(plain.data), "(expected 1)")
+
+# Continent mapping & aggregation checks
+assert df["continent"].isna().sum() == 0, "All 195 countries must map to a continent"
+assert set(df["continent"].unique()) == set(CONTINENTS)
+cont_latest = aggregate_by_continent(df[df["year"] == year])
+assert len(cont_latest) == len(CONTINENTS)
+assert cont_latest["country_count"].sum() == df[df["year"] == year]["country"].nunique()
+print("All 195 countries mapped across", len(CONTINENTS), "continents")
+
+# Continental chart checks
+sample_continents = ["Africa", "Asia", "Europe"]
+cont_trend = create_hdi_trend(df, continents=sample_continents, year=year)
+cont_names = [t.name for t in cont_trend.data]
+assert len(cont_trend.data) == len(sample_continents) + 1, cont_names
+assert "All-country average" in cont_names
+print("Continental trend lines:", len(cont_trend.data), "(expected 4):", cont_names)
+
+both_trend = create_hdi_trend(df, countries=two, continents=sample_continents, year=year)
+assert len(both_trend.data) == len(two) + len(sample_continents) + 1
+
+assert isinstance(create_continent_hdi_bar(df, year, sample_continents), PlotlyFigure)
+assert isinstance(create_continent_hdi_spread(df, year, sample_continents), PlotlyFigure)
+
+cont_sc = create_life_expectancy_scatter(df, year, continents=sample_continents)
+assert len(cont_sc.data) == len(sample_continents)
+
+both_sc = create_gni_scatter(df, year, countries=two, continents=sample_continents)
+assert len(both_sc.data) == 1 + len(sample_continents)
+
+cont_dist_multi = create_continent_hdi_distribution(df, year, sample_continents)
+assert isinstance(cont_dist_multi, MplFigure)
+assert figure_to_base64(cont_dist_multi).startswith("data:image/png;base64,")
+
+cont_dist_single = create_continent_hdi_distribution(df, year, ["Asia"])
+assert isinstance(cont_dist_single, MplFigure)
+assert figure_to_base64(cont_dist_single).startswith("data:image/png;base64,")
+
+cont_hm = create_correlation_heatmap(df, year, continents=sample_continents)
+assert isinstance(cont_hm, MplFigure)
+assert figure_to_base64(cont_hm).startswith("data:image/png;base64,")
+print("OK Continental charts (Plotly + Seaborn)")
 
 # Data check
 row = df.loc[df["Life_Expectancy"].idxmin(), ["country", "year", "Life_Expectancy"]]

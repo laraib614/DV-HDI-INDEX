@@ -101,8 +101,9 @@ body {
 }
 
 .filter { display: flex; flex-direction: column; gap: 5px; }
-.year-filter { width: 150px; }
-.country-filter { flex: 1; min-width: 280px; }
+.year-filter { width: 130px; }
+.continent-filter { flex: 1; min-width: 240px; }
+.country-filter { flex: 1.2; min-width: 260px; }
 
 .filter label {
   font-size: 13px;
@@ -314,6 +315,7 @@ a:focus-visible {
   .project-tag { display: none; }
   .header h1 { font-size: 19px; }
   .year-filter { width: 100%; }
+  .continent-filter, .country-filter { min-width: 0; width: 100%; }
   .kpi-value { font-size: 26px; }
   .graph, #trend-chart { height: 340px !important; }
 }
