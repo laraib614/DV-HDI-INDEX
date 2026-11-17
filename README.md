@@ -2,29 +2,30 @@
 
 An interactive Python dashboard for exploring global human development, built from United Nations Development Programme (UNDP) Human Development Report data for 195 countries from 1990 to 2023.
 
-**Course context:** Data Visualization Lab (DV Lab), Week 8–9, Topic 5: Dashboard Creation.
+**Course context:** Data Visualization Lab (BISL504), NIE Mysuru — Dept. of Information Science & Engineering.
 
 ---
 
 ## Abstract
 
-The Human Development Index (HDI) Analysis Project presents a comprehensive examination of global human development trends using data obtained from the United Nations Development Programme (UNDP). The dataset incorporates HDI values along with its core components: life expectancy, educational attainment (mean and expected years of schooling), and Gross National Income (GNI) per capita. This enables a multidimensional assessment of development across countries. The primary objective of this project is to design and implement an interactive data visualization dashboard that gives users an intuitive platform to explore, compare, and interpret global HDI statistics.
+The Human Development Index (HDI) Analysis Project presents a comprehensive examination of global human development trends using data obtained from the United Nations Development Programme (UNDP). The dataset incorporates HDI values along with its core components: life expectancy, educational attainment (mean and expected years of schooling), and Gross National Income (GNI) per capita. This enables a multidimensional assessment of development across countries and continents. The primary objective of this project is to design and implement an interactive data visualization dashboard that gives users an intuitive platform to explore, compare, and interpret global and continental HDI statistics.
 
-The dashboard combines nine linked visualizations: a line chart for the long-run trend, bar charts for cross-country rankings, scatter plots for investigating the relationship between HDI and each of its indicators, a histogram for the distribution of HDI, and a correlation heatmap. Interactive year and country filters, hover details, and real-time updates support dynamic analysis.
+The dashboard combines interactive Plotly visualizations (long-run trend lines, country rankings, continental average & spread comparisons, and indicator scatter plots) with Seaborn statistical charts (HDI distribution and correlation heatmap). Interactive year, continent, and country filters, hover details, and explicit Apply/Reset updates support dynamic analysis across global, country, and continental views.
 
-By transforming a complex dataset into clear, accessible visuals, the project makes it easier to see global development disparities, progress over time, and the factors most closely associated with human well-being. Ultimately, it demonstrates how data visualization converts raw numerical information into actionable knowledge that can support evidence-based discussion of sustainable human development.
+By transforming a complex dataset into clear, accessible visuals, the project makes it easier to see global development disparities, continental trajectories, progress over time, and the factors most closely associated with human well-being. Ultimately, it demonstrates how data visualization converts raw numerical information into actionable knowledge that can support evidence-based discussion of sustainable human development.
 
 ---
 
 ## Key features
 
-- **Nine charts, all interactive or filter-aware** (see the table below).
-- **Year filter:** choose any year from 1990 to 2023. It updates the summary figures, rankings, the four scatter plots, the distribution, and the heatmap.
-- **Country comparison:** search and select any number of countries. The trend chart then shows one line per selected country against the dashed all-country average, and the scatter plots show only the selected countries with their names labelled.
-- **Context-aware view:** while countries are selected, the Top 10, Bottom 10, and HDI Distribution charts are hidden, because they rank or describe all 195 countries and would be misleading for a subset. Press **Reset** to restore them.
-- **Summary figures:** average, highest, and lowest HDI, plus the country count. They are calculated from the data and follow the selected scope.
-- **Clear filter feedback:** Apply and Reset buttons, a status label showing the current view, and a hint when filters have been changed but not yet applied.
-- **Accessible design:** colour-blind-safe palette, plain white chart areas, visible keyboard focus, alt text on the Seaborn images, and a responsive layout.
+- **Global, Country, and Continental views:** Start in the global overview across all 195 countries, drill down to individual countries, compare up to six continents (`Africa`, `Asia`, `Europe`, `North America`, `Oceania`, `South America`), or benchmark selected countries alongside continental averages.
+- **Year filter:** Choose any year from 1990 to 2023. It updates the summary figures, rankings/continental comparisons, scatter plots, distribution, and correlation heatmap.
+- **Continents to compare:** Select one, several, or all six continents (`Select All`). All 195 `countryIsoCode` values are mapped via UNSD M49 conventions (`src/continents.py`) and combined per year into continental averages. The dashboard plots continental trend lines (1990–2023), a Continental Average HDI bar chart, a country-level HDI spread box plot, continental averages on the four indicator scatter plots, and Seaborn continental distribution and correlation charts.
+- **Country comparison:** Search and select any number of countries. The trend chart shows one line per selected country against the dashed all-country average, and the scatter plots show the selected countries with their names labelled (when 12 or fewer are selected).
+- **Context-aware view:** While only countries are selected, the Top 10, Bottom 10, and global HDI Distribution charts are hidden, because they rank or describe all 195 countries and would be misleading for a subset. When continents are selected, the rankings section switches to the Continental Comparison charts. Press **Reset** to restore the global view.
+- **Summary figures:** Average, highest, and lowest HDI (or highest/lowest continent when comparing 2+ continents), plus country/continent counts and change since 1990.
+- **Clear filter feedback:** Apply and Reset buttons, a status pill showing the current view, a contextual explanation note, and an amber hint when filters have been changed but not yet applied.
+- **Accessible design:** Colour-blind-safe Okabe-Ito palette (`CONTINENT_COLOURS` / `PALETTE`), plain white chart areas, direct data labels, visible keyboard focus, alt text on Seaborn images, and a responsive layout.
 
 ---
 
@@ -36,27 +37,29 @@ By transforming a complex dataset into clear, accessible visuals, the project ma
 | Data handling | Pandas | Loading, cleaning, reshaping, filtering, aggregation |
 | Spreadsheet I/O | openpyxl | Reading the raw `.xlsx` and writing the cleaned `.xlsx` |
 | Dashboard framework | Dash (Flask-based) | Layout, filters, and callbacks |
-| Interactive charts | Plotly Express / Plotly Graph Objects | Charts 1–7 |
-| Statistical charts | Seaborn + Matplotlib | Charts 8–9 |
+| Interactive charts | Plotly Express / Plotly Graph Objects | Trend, ranking, continental comparison, and scatter charts |
+| Statistical charts | Seaborn + Matplotlib | Distribution and correlation heatmap charts |
 | Styling | CSS (`dashboard/assets/style.css`) | Layout, filter bar, focus states, responsive design |
 | Development | Visual Studio Code, PowerShell, pip | Editing, running, package management |
 | Data source | UNDP Human Development Report | Raw dataset |
 
-## Visualization tools and the nine charts
+## Visualization tools and charts
 
 | # | Chart | Type | Library | Responds to |
 |---|---|---|---|---|
-| 1 | Average HDI Trend, 1990–2023 | Line | Plotly | Country filter (per-country lines); year shown as a marker |
-| 2 | Top 10 Countries by HDI | Horizontal bar | Plotly | Year |
-| 3 | Bottom 10 Countries by HDI | Horizontal bar | Plotly | Year |
-| 4 | Life Expectancy vs HDI | Scatter | Plotly | Year, countries |
-| 5 | GNI Per Capita vs HDI | Scatter | Plotly | Year, countries |
-| 6 | Mean Years of Schooling vs HDI | Scatter | Plotly | Year, countries |
-| 7 | Expected Years of Schooling vs HDI | Scatter | Plotly | Year, countries |
-| 8 | HDI Distribution | Histogram with density curve | Seaborn + Matplotlib | Year |
-| 9 | Correlation Heatmap | Heatmap | Seaborn + Matplotlib | Year |
+| 1 | Average / Continental HDI Trend, 1990–2023 | Line | Plotly | Continents, countries (year shown as vertical marker) |
+| 2 | Top 10 Countries by HDI *(Global view)* | Horizontal bar | Plotly | Year |
+| 3 | Bottom 10 Countries by HDI *(Global view)* | Horizontal bar | Plotly | Year |
+| 4 | Life Expectancy vs HDI | Scatter | Plotly | Year, continents, countries |
+| 5 | GNI Per Capita vs HDI | Scatter | Plotly | Year, continents, countries |
+| 6 | Mean Years of Schooling vs HDI | Scatter | Plotly | Year, continents, countries |
+| 7 | Expected Years of Schooling vs HDI | Scatter | Plotly | Year, continents, countries |
+| 8 | HDI Distribution *(Global or by Continent)* | Histogram / Box + Strip | Seaborn + Matplotlib | Year, continents |
+| 9 | Correlation Heatmap | Heatmap | Seaborn + Matplotlib | Year, continents |
+| 10 | Average HDI by Continent *(Continental view)* | Horizontal bar | Plotly | Year, continents |
+| 11 | HDI Spread Across Countries by Continent *(Continental view)* | Box plot + country points | Plotly | Year, continents |
 
-Charts 1–7 are interactive in the browser (hover, zoom, pan). Charts 8 and 9 are drawn with Seaborn on a Matplotlib figure and shown in the dashboard as images that are regenerated whenever the filters change.
+Interactive Plotly charts support hover tooltips, zoom, pan, and PNG download. Seaborn charts are rendered on Matplotlib figures and embedded as PNGs whenever filters are applied.
 
 ---
 
@@ -86,7 +89,7 @@ Charts 1–7 are interactive in the browser (hover, zoom, pan). Charts 8 and 9 a
 - **Interpolated values:** because gaps were filled during preprocessing and the cleaned file does not flag which values were filled, every country appears in every year. The dashboard footer and the country-count card state this.
 - **Rwanda, 1994:** the lowest life expectancy (12.158 years) is a genuine historical value and was deliberately left unchanged.
 - **Descriptive only:** the scatter plots and correlations show association, not causation. HDI is itself calculated from life expectancy, schooling, and income, so strong correlations are expected.
-- **No regional grouping:** the cleaned dataset contains countries only, so there are no regional or income-group views.
+- **No sub-national or population-weighted data:** `HDI_cleaned.csv` contains country-level records without population weights. To support continental comparison (`src/continents.py`), all 195 `countryIsoCode` values are mapped to six continents (`Africa`, `Asia`, `Europe`, `North America`, `Oceania`, `South America`) using UNSD M49 macro-geographical conventions, and continental scores are calculated as unweighted arithmetic means across each continent's countries (matching how the global average is computed).
 
 ---
 
@@ -107,8 +110,9 @@ DV-HDI-INDEX/
 │
 ├── src/
 │   ├── __init__.py
+│   ├── continents.py                  # UN M49 195-country continent mapping & aggregation
 │   ├── preprocessin.py                # data cleaning workflow
-│   └── visualization.py               # the nine chart functions
+│   └── visualization.py               # Plotly and Seaborn chart functions
 │
 ├── dashboard/
 │   ├── app.py                         # Dash layout and callbacks
@@ -117,11 +121,15 @@ DV-HDI-INDEX/
 │
 ├── tests/
 │   ├── __init__.py
-│   └── test_charts.py                 # chart and filter checks
+│   └── test_charts.py                 # chart, filter, and continent checks
 │
-├── docs/                              # AI critique log (see Deliverables)
+├── docs/
+│   ├── AI_critique_log.md             # 4-criterion AI design critique log
+│   ├── HDI_Analysis_and_Visualization_Report.docx
+│   ├── HDI_Project_Presentation.pptx
+│   └── HDI_Full_Project_Presentation.pptx
 ├── evidence/                          # before / after / testing screenshots
-├── outputs/                           # PNGs saved by src/visualization.py
+├── outputs/                           # saved dashboard screenshots and chart PNGs
 ├── requirements.txt
 └── README.md
 ```
@@ -173,9 +181,10 @@ This opens charts 1–7 in your browser and saves the two Seaborn charts to `out
 ## How to use the dashboard
 
 1. Choose a **Year** and press **Apply** to update the rankings, scatter plots, distribution, heatmap, and summary figures.
-2. Open **Countries to compare**, type to search, and add one or more countries. Press **Apply** to see their HDI trends against the all-country average.
-3. Hover over any point or bar for exact values. Use the chart toolbar to zoom, pan, or download a chart.
-4. Press **Reset** to return to the latest year with all countries.
+2. Open **Continents to compare**, select one or more continents (or click **Select All** for all six), and press **Apply** to view combined continental trends, Continental Average HDI bars, country-level box spreads, continental indicator scatter plots, and continental distribution/correlation charts.
+3. Open **Countries to compare**, type to search, and add one or more countries. Press **Apply** to see their HDI trends against the all-country average (or combine both filters to benchmark selected countries against continental averages).
+4. Hover over any point or bar for exact values. Use the chart toolbar to zoom, pan, or download a chart.
+5. Press **Reset** to return to the latest year (`2023`) in the global view.
 
 ---
 
@@ -183,9 +192,10 @@ This opens charts 1–7 in your browser and saves the two Seaborn charts to `out
 
 | Deliverable | Location | Status |
 |---|---|---|
-| Interactive dashboard with all nine charts and working filters | `dashboard/` | Done |
+| Interactive dashboard with global, country, and continental views | `dashboard/`, `src/` | Done |
+| Project report & final presentation slides | `docs/HDI_Analysis_and_Visualization_Report.docx`, `docs/HDI_Project_Presentation.pptx` | Done |
+| AI design critique against four criteria: data-ink ratio, colour accessibility, layout hierarchy, interactivity affordances | `docs/AI_critique_log.md` | Done |
 | "Before" screenshots of the initial dashboard | `evidence/before/` | To add |
-| AI design critique against four criteria: data-ink ratio, colour accessibility, layout hierarchy, interactivity affordances | `docs/AI_critique_log.md` | To add |
 | "After" screenshots of the improved dashboard | `evidence/after/` | To add |
 | Functional testing evidence | `evidence/testing/` | To add |
 
@@ -193,9 +203,17 @@ Update the status column as each item is completed.
 
 ---
 
+## Team & Guidance
+
+- **Course:** Data Visualization Lab (`BISL504`), Dept. of Information Science & Engineering, The National Institute of Engineering (NIE), Mysuru
+- **Team Members:** Muhammad Laraib Jamal (`4NI24IS109`), Nadeem Siddique (`4NI24IS113`), Manan Maheshwari (`4NI24IS099`), N Ravi Kiran (`4NI24IS112`)
+- **Guides:** Dr. K. Raghuveer (Professor, Dept. of ISE) & Ms. Sandhya N (Assistant Professor, Dept. of ISE)
+
+---
+
 ## AI assistance
 
-This project was developed with assistance from an AI assistant (Claude by Anthropic) for refactoring the chart code into reusable functions, building the Dash application and its styling, and design critique. All suggestions were reviewed, tested locally, and accepted or rejected by the author. Accepted and rejected suggestions are recorded in `docs/AI_critique_log.md`.
+This project was developed with assistance from AI tools for refactoring the chart code into reusable functions, implementing the Dash application and styling, adding UN M49 continental mapping and comparative charts, conducting design critique, and preparing documentation/presentation materials. All outputs were reviewed and verified locally against the dataset and test suite.
 
 ---
 
@@ -203,5 +221,3 @@ This project was developed with assistance from an AI assistant (Claude by Anthr
 
 - UNDP Human Development Report data: <https://hdr.undp.org/data-center>
 - Built with [Dash](https://dash.plotly.com/), [Plotly](https://plotly.com/python/), [Seaborn](https://seaborn.pydata.org/), [Matplotlib](https://matplotlib.org/), and [Pandas](https://pandas.pydata.org/).
-
-**Course:** Data Visualization Lab

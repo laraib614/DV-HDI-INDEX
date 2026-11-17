@@ -730,6 +730,7 @@ def create_continent_hdi_distribution(
             order=order,
             palette=CONTINENT_COLOURS,
             legend=False,
+            showfliers=False,
             boxprops={"alpha": 0.7},
             ax=ax,
         )
