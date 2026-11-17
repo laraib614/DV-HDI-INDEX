@@ -76,17 +76,16 @@ assert len(cont_trend.data) == len(sample_continents) + 1, cont_names
 assert "All-country average" in cont_names
 print("Continental trend lines:", len(cont_trend.data), "(expected 4):", cont_names)
 
-both_trend = create_hdi_trend(df, countries=two, continents=sample_continents, year=year)
-assert len(both_trend.data) == len(two) + len(sample_continents) + 1
+bar_fig = create_continent_hdi_bar(df, year, sample_continents)
+assert isinstance(bar_fig, PlotlyFigure)
+assert list(bar_fig.layout.yaxis.categoryarray) == ["Africa", "Asia", "Europe"]
 
-assert isinstance(create_continent_hdi_bar(df, year, sample_continents), PlotlyFigure)
-assert isinstance(create_continent_hdi_spread(df, year, sample_continents), PlotlyFigure)
+spread_fig = create_continent_hdi_spread(df, year, sample_continents)
+assert isinstance(spread_fig, PlotlyFigure)
+assert list(spread_fig.layout.yaxis.categoryarray) == ["Africa", "Asia", "Europe"]
 
 cont_sc = create_life_expectancy_scatter(df, year, continents=sample_continents)
 assert len(cont_sc.data) == len(sample_continents)
-
-both_sc = create_gni_scatter(df, year, countries=two, continents=sample_continents)
-assert len(both_sc.data) == 1 + len(sample_continents)
 
 cont_dist_multi = create_continent_hdi_distribution(df, year, sample_continents)
 assert isinstance(cont_dist_multi, MplFigure)

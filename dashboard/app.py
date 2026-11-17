@@ -168,7 +168,7 @@ app.layout = html.Div(
                                     value=[],
                                     multi=True,
                                     searchable=True,
-                                    placeholder="All continents. Select to compare.",
+                                    placeholder="Select continents to compare (clears countries).",
                                 ),
                             ],
                             className="filter continent-filter",
@@ -188,7 +188,7 @@ app.layout = html.Div(
                                     value=[],
                                     multi=True,
                                     searchable=True,
-                                    placeholder="All countries. Type to search and add countries.",
+                                    placeholder="All countries. Select countries to compare (clears continents).",
                                 ),
                             ],
                             className="filter country-filter",
@@ -312,16 +312,12 @@ def mean_hdi(year, countries, continents=None):
 
 def _build_kpis(year, data, countries, continents):
     """Compute labels, values, and subtitles for the four KPI cards."""
-    has_continents = bool(continents)
-    has_countries = bool(countries)
-    continent_only = has_continents and not has_countries
-
     avg_now = data["HDI"].mean()
     avg_first = mean_hdi(FIRST, countries, continents)
     scope_word = (
         "selected continents"
-        if continent_only
-        else ("selected countries" if has_countries else "all countries")
+        if continents
+        else ("selected countries" if countries else "all countries")
     )
     avg_sub = (
         f"Average of {scope_word}"
@@ -329,7 +325,7 @@ def _build_kpis(year, data, countries, continents):
         else f"{avg_now - avg_first:+.3f} since {FIRST}"
     )
 
-    if continent_only:
+    if continents:
         if len(continents) >= 2:
             cont_year = aggregate_by_continent(data, continents)
             top_c = cont_year.loc[cont_year["HDI"].idxmax()]
@@ -361,7 +357,7 @@ def _build_kpis(year, data, countries, continents):
 
     high = data.loc[data["HDI"].idxmax()]
     low = data.loc[data["HDI"].idxmin()]
-    if has_countries:
+    if countries:
         labels = (
             "Average HDI (selected)",
             "Highest HDI (selected)",
@@ -387,8 +383,6 @@ def _build_kpis(year, data, countries, continents):
 
 def _build_view_text(year, countries, continents, country_count):
     """Return status pill text/class, filter note, and dynamic section captions."""
-    has_continents = bool(continents)
-    has_countries = bool(countries)
     default_scatter = (
         "Each point is one country in the selected year. "
         "Hover over a point for exact values."
@@ -398,30 +392,7 @@ def _build_view_text(year, countries, continents, country_count):
         "indicators move together."
     )
 
-    if has_continents and has_countries:
-        pill = (
-            f"Comparing {len(countries)} "
-            f"{'country' if len(countries) == 1 else 'countries'} + "
-            f"{len(continents)} "
-            f"{'continent' if len(continents) == 1 else 'continents'}"
-        )
-        note = (
-            f"Showing selected countries alongside combined continental averages "
-            f"for {', '.join(continents)} in {year}. Continental comparison and "
-            f"distribution charts cover the selected continents. Press Reset to "
-            f"return to the global view."
-        )
-        return (
-            pill,
-            "pill comparing",
-            note,
-            "Selected countries (circles) alongside combined continental "
-            "averages (diamonds) in the selected year.",
-            "How HDI is spread across countries in the selected continents, "
-            "and how closely the indicators move together.",
-        )
-
-    if has_continents:
+    if continents:
         pill = (
             f"Comparing all {len(CONTINENTS)} continents"
             if len(continents) == len(CONTINENTS)
@@ -445,7 +416,7 @@ def _build_view_text(year, countries, continents, country_count):
             "and how closely the indicators move together.",
         )
 
-    if has_countries:
+    if countries:
         pill = (
             f"Comparing {len(countries)} "
             f"{'country' if len(countries) == 1 else 'countries'}"
@@ -463,10 +434,31 @@ def _build_view_text(year, countries, continents, country_count):
         f"Global view: all {TOTAL_COUNTRIES} countries, {year}",
         "pill",
         f"Showing all countries for {year}. The trend line always covers "
-        f"{FIRST}–{LATEST}. Select continents or countries to compare HDI trends.",
+        f"{FIRST}–{LATEST}. Select either continents or countries to compare HDI trends.",
         default_scatter,
         default_dist_corr,
     )
+
+
+# =========================================================
+# EXCLUSIVE FILTER SYNC: either continents OR countries
+# =========================================================
+
+@app.callback(
+    Output("continent-dropdown", "value", allow_duplicate=True),
+    Output("country-dropdown", "value", allow_duplicate=True),
+    Input("continent-dropdown", "value"),
+    Input("country-dropdown", "value"),
+    prevent_initial_call=True,
+)
+def sync_exclusive_filters(continents, countries):
+    if not continents or not countries:
+        return no_update, no_update
+    if ctx.triggered_id == "continent-dropdown":
+        return no_update, []
+    if ctx.triggered_id == "country-dropdown":
+        return [], no_update
+    return no_update, no_update
 
 
 # =========================================================
@@ -519,8 +511,9 @@ def update_dashboard(apply_clicks, reset_clicks, year, continents, countries):
     continents = sorted(continents or [])
     countries = sorted(countries or [])
 
-    has_continents = bool(continents)
-    country_only = bool(countries) and not has_continents
+    # Never combine continents and countries in a single view.
+    if continents and countries:
+        continents = []
 
     data = scoped(year, countries, continents)
     (
@@ -544,7 +537,7 @@ def update_dashboard(apply_clicks, reset_clicks, year, continents, countries):
     mean_school = create_mean_schooling_scatter(df, year, countries, continents)
     exp_school = create_expected_schooling_scatter(df, year, countries, continents)
 
-    if has_continents:
+    if continents:
         rankings = continental_section(
             create_continent_hdi_bar(df, year, continents),
             create_continent_hdi_spread(df, year, continents),
@@ -561,7 +554,7 @@ def update_dashboard(apply_clicks, reset_clicks, year, continents, countries):
         heatmap_alt = (
             f"Correlation heatmap of HDI indicators for selected continents in {year}"
         )
-    elif country_only:
+    elif countries:
         rankings = None
         dist_class = "hidden"
         dist_src = dist_alt = no_update

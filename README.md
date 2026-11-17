@@ -18,7 +18,7 @@ By transforming a complex dataset into clear, accessible visuals, the project ma
 
 ## Key features
 
-- **Global, Country, and Continental views:** Start in the global overview across all 195 countries, drill down to individual countries, compare up to six continents (`Africa`, `Asia`, `Europe`, `North America`, `Oceania`, `South America`), or benchmark selected countries alongside continental averages.
+- **Global, Country, or Continental views:** Start in the global overview across all 195 countries, drill down to compare individual countries, or compare up to six continents (`Africa`, `Asia`, `Europe`, `North America`, `Oceania`, `South America`). Country and continental comparisons are mutually exclusive (selecting one clears the other) so every chart stays clear and comparable.
 - **Year filter:** Choose any year from 1990 to 2023. It updates the summary figures, rankings/continental comparisons, scatter plots, distribution, and correlation heatmap.
 - **Continents to compare:** Select one, several, or all six continents (`Select All`). All 195 `countryIsoCode` values are mapped via UNSD M49 conventions (`src/continents.py`) and combined per year into continental averages. The dashboard plots continental trend lines (1990–2023), a Continental Average HDI bar chart, a country-level HDI spread box plot, continental averages on the four indicator scatter plots, and Seaborn continental distribution and correlation charts.
 - **Country comparison:** Search and select any number of countries. The trend chart shows one line per selected country against the dashed all-country average, and the scatter plots show the selected countries with their names labelled (when 12 or fewer are selected).
@@ -181,8 +181,8 @@ This opens charts 1–7 in your browser and saves the two Seaborn charts to `out
 ## How to use the dashboard
 
 1. Choose a **Year** and press **Apply** to update the rankings, scatter plots, distribution, heatmap, and summary figures.
-2. Open **Continents to compare**, select one or more continents (or click **Select All** for all six), and press **Apply** to view combined continental trends, Continental Average HDI bars, country-level box spreads, continental indicator scatter plots, and continental distribution/correlation charts.
-3. Open **Countries to compare**, type to search, and add one or more countries. Press **Apply** to see their HDI trends against the all-country average (or combine both filters to benchmark selected countries against continental averages).
+2. Open **Continents to compare**, select one or more continents (or click **Select All** for all six), and press **Apply** to view combined continental trends, Continental Average HDI bars, country-level box spreads, continental indicator scatter plots, and continental distribution/correlation charts. (Selecting continents clears any country selection.)
+3. Open **Countries to compare**, type to search, and add one or more countries. Press **Apply** to see their HDI trends against the all-country average. (Selecting countries clears any continent selection.)
 4. Hover over any point or bar for exact values. Use the chart toolbar to zoom, pan, or download a chart.
 5. Press **Reset** to return to the latest year (`2023`) in the global view.
 
